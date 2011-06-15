@@ -3,12 +3,25 @@
 %%{
     machine microscript;
 
-    action StartPost {
-        ts = p;
+    action StartKey {
+        ks = p;
     }
     
-    action PrintPost {
-        cout << string(ts, (p - ts)) << endl;
+    action RecordKey {
+        key = string(ks, (p - ks));
+    }
+
+    action RecordValue {
+        string value = string(ks, (p - ks));
+        data[key] = value;
+    }
+
+    action StartChar {
+        us = p;
+    }
+    
+    action RecordChar {
+        encoded_chars.push_back(string(us, (p - us)));
     }
 
     action ClearNumber {
@@ -20,31 +33,47 @@
         currentNumber = (currentNumber * 10) + digit;
     }
 
+    action RecordContentLength {
+        content_length = currentNumber;
+    }
+
+    action UpdateEOF {
+        eof = p + content_length;
+        pe = eof;
+    }
+
     action cmd_error {
         cout << "Error" << endl;
     }
 
+    action finish_parse {
+        error = false;
+    }
+
     number = ((digit @RecordDigit)+) >ClearNumber; 
     
-    post = ("POST"i [^\n]* '\n') >StartPost %PrintPost;
-    user_agent = ("USER-AGENT:"i [^\n]* '\n') >StartPost %PrintPost;
-    host = ("HOST:"i [^\n]* '\n') >StartPost %PrintPost;
-    accept = ("ACCEPT:"i [^\n]* '\n') >StartPost %PrintPost;
-    content_length = ("CONTENT-LENGTH:"i space+ number '\n') >StartPost %PrintPost;
-    content_type = ("CONTENT-TYPE:" space+ "APPLICATION/X-WWW-FORM-URLENCODED"i) >StartPost %PrintPost;
-    key = (ascii - space)+;
-    value = (ascii - space)+;
+    post = ("POST"i [^\n]* '\n');
+    user_agent = ("USER-AGENT:"i [^\n]* '\n');
+    host = ("HOST:"i [^\n]* '\n');
+    accept = ("ACCEPT:"i [^\n]* '\n');
+    content_length = ("CONTENT-LENGTH:"i space+ number '\n') %RecordContentLength;
+    content_type = ("CONTENT-TYPE:" space+ "APPLICATION/X-WWW-FORM-URLENCODED"i space*) %UpdateEOF;
+
+    url_encoded = ('%' [0-9a-fA-F]{2}) >StartChar %RecordChar;
+    key = ((ascii - space - '&')+) >StartKey %RecordKey;
+    value = ((url_encoded | (ascii - space - '&'))+) >StartKey %RecordValue;
     data = (key '=' value);
-    data_set = (data ('&' data)*) >StartPost %PrintPost;
-    
-    main := (
+    data_set = (data ('&' data)*);
+    header = (
             post 
             user_agent
             host
             accept
             content_length
-            content_type space*
-            data_set space+) <!cmd_error;
+            content_type
+            );
+
+    main := (header data_set space*) <!cmd_error %finish_parse;
 #    main := post user_agent host accept content_length content_type
 }%% 
 

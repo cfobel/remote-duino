@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import SocketServer
 
 class MyTCPHandler(SocketServer.BaseRequestHandler):

@@ -1,9 +1,11 @@
 # SConstruct file
 env=Environment()
 
-ragel_bld = Builder(action = '/usr/bin/ragel -G2 -o $TARGET $SOURCE',
+ragel_bld = Builder(action = '/usr/bin/ragel -G0 -o $TARGET $SOURCE',
               suffix = '.cpp', src_suffix = '.rl')
 ragel_dot_bld = Builder(action = '/usr/bin/ragel -o $TARGET -V -p $SOURCE',
+              suffix = '.dot', src_suffix = '.rl')
+ragel_dot_bld_sub = Builder(action = '/usr/bin/ragel -M $MACHINE -o $TARGET -V -p $SOURCE',
               suffix = '.dot', src_suffix = '.rl')
 dot_bld = Builder(action = '/usr/bin/dot -o $TARGET -Tpdf $SOURCE',
               suffix = '.pdf', src_suffix = '.dot')
@@ -12,15 +14,20 @@ dot_bld = Builder(action = '/usr/bin/dot -o $TARGET -Tpdf $SOURCE',
 # Add the new Builder to the list of builders
 env['BUILDERS']['Ragel'] = ragel_bld
 env['BUILDERS']['RagelDot'] = ragel_dot_bld
+env['BUILDERS']['RagelDotSub'] = ragel_dot_bld_sub
 env['BUILDERS']['Dot'] = dot_bld
 
 DEBUG = ARGUMENTS.get('DEBUG', 0)
+MACHINE = ARGUMENTS.get('MACHINE', None)
 
 if DEBUG:
     env.Append(CPPFLAGS=['-g'])
     env.Append(LINKFLAGS=['-g'])
+elif MACHINE is not None:
+    dots = env.RagelDotSub('%s.dot' % MACHINE, 'Server.rl', MACHINE=MACHINE)
+    env.Dot(dots)
 else:
-    env.Append(CPPFLAGS=['-O3'])
+    env.Append(CPPFLAGS=['-Os'])
 
 # Generate foo.vds from foo.txt using mk_vdu
 server_source = env.Ragel('Server.rl')
