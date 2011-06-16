@@ -24,10 +24,10 @@ private:
     void init();
 public:
     vector<char> buf_vector;
-    Server() : ts(NULL), 
+    Server(int buffer_size = 512) : ts(NULL), 
         content_length(0),
         error(true),
-        currentNumber(0), buf_vector(vector<char>(1024)) {
+        currentNumber(0), buf_vector(vector<char>(buffer_size)) {
         init();
     }
     void parse_microscript(const char* p, uint16_t len, uint8_t is_eof);
