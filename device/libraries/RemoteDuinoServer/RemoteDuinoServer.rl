@@ -43,7 +43,9 @@
     }
 
     action cmd_error {
+#if 0
         cout << "Error" << endl;
+#endif
     }
 
     action finish_parse {

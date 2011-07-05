@@ -1,7 +1,7 @@
 # SConstruct file
 env=Environment()
 
-ragel_bld = Builder(action = '/usr/bin/ragel -G0 -o $TARGET $SOURCE',
+ragel_bld = Builder(action = '/usr/bin/ragel -T0 -o $TARGET $SOURCE',
               suffix = '.cpp', src_suffix = '.rl')
 ragel_dot_bld = Builder(action = '/usr/bin/ragel -o $TARGET -V -p $SOURCE',
               suffix = '.dot', src_suffix = '.rl')
@@ -20,18 +20,19 @@ env['BUILDERS']['Dot'] = dot_bld
 DEBUG = ARGUMENTS.get('DEBUG', 0)
 MACHINE = ARGUMENTS.get('MACHINE', None)
 
+ragel_source = 'RemoteDuinoServer.rl'
 if DEBUG:
     env.Append(CPPFLAGS=['-g'])
     env.Append(LINKFLAGS=['-g'])
 elif MACHINE is not None:
-    dots = env.RagelDotSub('%s.dot' % MACHINE, 'Server.rl', MACHINE=MACHINE)
+    dots = env.RagelDotSub('%s.dot' % MACHINE, ragel_source, MACHINE=MACHINE)
     env.Dot(dots)
 else:
     env.Append(CPPFLAGS=['-Os'])
 
 # Generate foo.vds from foo.txt using mk_vdu
-server_source = env.Ragel('Server.rl')
-env.Program('Server', ['main.cpp', server_source])
+server_source = env.Ragel(ragel_source)
+#env.Program('Server', ['main.cpp', server_source])
 
-dot = env.RagelDot('Server.rl')
+dot = env.RagelDot(ragel_source)
 env.Dot(dot)

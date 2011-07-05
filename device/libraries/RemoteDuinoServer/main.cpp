@@ -1,15 +1,7 @@
-#include <iostream>
-#include <string>
-#include <sstream>
 #include "Server.hpp"
+#include <new.cpp>
 
 using namespace std;
-
-inline string itoa(int value) {
-    stringstream out;
-    out << value;
-    return out.str();
-}
 
 /*
 curl --data-urlencode "test=hello" http://0.0.0.0:9999
@@ -32,13 +24,12 @@ int main() {
                     "USER-AGENT: CURL/7.21.0 (I686-PC-LINUX-GNU) LIBCURL/7.21.0 OPENSSL/0.9.8O ZLIB/1.2.3.4 LIBIDN/1.18\n"\
                     "HOST: 0.0.0.0:9999\n"\
                     "ACCEPT: */*\n"\
-                    "CONTENT-LENGTH: " + itoa(data.size()) + "\n"\
+                    "CONTENT-LENGTH: 55\n"\
                     "CONTENT-TYPE: APPLICATION/X-WWW-FORM-URLENCODED\n"\
                     + data + "\n"\
                     "bloaadfadf";
 
     s.parse_microscript(headers.c_str(), headers.size(), 1);
-    s.to_string();
 
     return 0;
 }

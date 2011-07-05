@@ -1,8 +1,9 @@
-#include <boost/foreach.hpp>
+#include <stl_config.h>
+#include <iostream>
+#include <string>
 #include <stdint.h>
 #include <vector>
 #include <map>
-#include <iostream>
 using namespace std;
 
 typedef map<string, string> key_val_map_t;
@@ -31,15 +32,4 @@ public:
         init();
     }
     void parse_microscript(const char* p, uint16_t len, uint8_t is_eof);
-    void to_string() {
-        cout << "content_length: " << content_length << endl;
-        cout << "encoded_chars:" << endl;
-        BOOST_FOREACH(string &c, encoded_chars) {
-            cout << "  " << c << endl;
-        }
-        cout << "data:" << endl;
-        BOOST_FOREACH(key_val_map_t::value_type &item, data) {
-            cout << "  " << item.first << ": " << item.second << endl;
-        }
-    }
 };
