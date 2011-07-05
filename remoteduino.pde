@@ -26,10 +26,22 @@ using namespace std;
  * http://arcfn.com
  */
 
+#include <SPI.h>
+#include <Ethernet.h>
 #include <RemoteDuinoServer.h>
 #include <IRremote.h>
 
-int RECV_PIN = 11;
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte ip[] = { 192,168,1, 182 };
+
+// Initialize the Ethernet server library
+// with the IP address and port you want to use 
+// (port 80 is default for HTTP):
+Server server(80);
+
+int RECV_PIN = 7;
 int STATUS_PIN = 13;
 
 IRrecv irrecv(RECV_PIN);
@@ -39,13 +51,40 @@ decode_results results;
 
 std::ohserialstream cout(Serial);
 std::ihserialstream serial_in(Serial);
-RemoteDuinoServer RDServer;
+
+void init_ethernet()
+{
+  pinMode(8, OUTPUT);
+  digitalWrite(8, LOW);   // set the LED on
+  delay(2000);              // wait for a second
+  digitalWrite(8, HIGH);    // set the LED off
+  delay(1000);              // wait for a second
+  // start the Ethernet connection and the server:
+  Ethernet.begin(mac, ip);
+  server.begin();
+}
+
+extern void *__bss_end;
+extern void *__brkval;
+
+int get_free_memory() {
+    int free_memory;
+
+    if((int)__brkval == 0)
+        free_memory = ((int)&free_memory) - ((int)__bss_end);
+    else
+        free_memory = ((int)&free_memory) - ((int)__brkval);
+
+    return free_memory;
+}
 
 void setup() {
+    init_ethernet();
     Serial.begin(9600);
     irrecv.enableIRIn(); // Start the receiver
     pinMode(STATUS_PIN, OUTPUT);
     cout << "starting up..." << endl;
+    cout << get_free_memory() << endl;
 }
 
 // Storage for the recorded code
@@ -111,47 +150,29 @@ void storeCode(decode_results *results) {
   }
 }
 
-void sendCode(int repeat) {
-  if (codeType == NEC) {
-    if (repeat) {
-      irsend.sendNEC(REPEAT, codeLen);
-      cout << "Sent NEC repeat" << endl;
-    } 
-    else {
-      irsend.sendNEC(codeValue, codeLen);
-      cout << "Sent NEC ";
-      Serial.println(codeValue, HEX);
+void sendCode(int protocol, uint32_t code, int code_length = 32) {
+    if(protocol == NEC) {
+        irsend.sendNEC(code, code_length);
+        cout << "Sent NEC ";
+        Serial.println(code, HEX);
+    } else if(protocol == SONY) {
+        irsend.sendSony(code, code_length);
+        cout << "Sent Sony ";
+        Serial.println(code, HEX);
+    } else if (codeType == RC5) {
+        cout << "Sent RC5 ";
+        Serial.println(code, HEX);
+        irsend.sendRC5(code, code_length);
+    } else if (codeType == RC6) {
+        irsend.sendRC6(code, code_length);
+        cout << "Sent RC6 ";
+        Serial.println(code, HEX);
+    } else {
+    //else if (protocol == UNKNOWN /* i.e. raw */) {
+        // Assume 38 KHz
+        //irsend.sendRaw(rawCodes, codeLen, 38);
+        Serial.println("Unkown protocol");
     }
-  } 
-  else if (codeType == SONY) {
-    irsend.sendSony(codeValue, codeLen);
-    cout << "Sent Sony ";
-    Serial.println(codeValue, HEX);
-  } 
-  else if (codeType == RC5 || codeType == RC6) {
-    if (!repeat) {
-      // Flip the toggle bit for a new button press
-      toggle = 1 - toggle;
-    }
-    // Put the toggle bit into the code to send
-    codeValue = codeValue & ~(1 << (codeLen - 1));
-    codeValue = codeValue | (toggle << (codeLen - 1));
-    if (codeType == RC5) {
-      cout << "Sent RC5 ";
-      Serial.println(codeValue, HEX);
-      irsend.sendRC5(codeValue, codeLen);
-    } 
-    else {
-      irsend.sendRC6(codeValue, codeLen);
-      cout << "Sent RC6 ";
-      Serial.println(codeValue, HEX);
-    }
-  } 
-  else if (codeType == UNKNOWN /* i.e. raw */) {
-    // Assume 38 KHz
-    irsend.sendRaw(rawCodes, codeLen, 38);
-    Serial.println("Sent raw");
-  }
 }
 
 typedef char buff_char_t;
@@ -183,40 +204,65 @@ int read_data() {
     return curr_char;
 }
 
-extern void *__bss_end;
-extern void *__brkval;
-
-int get_free_memory() {
-    int free_memory;
-
-    if((int)__brkval == 0)
-        free_memory = ((int)&free_memory) - ((int)__bss_end);
-    else
-        free_memory = ((int)&free_memory) - ((int)__brkval);
-
-    return free_memory;
+int read_request(Client &client) {
+    // an http request ends with a blank line
+    int curr_char = 0;
+    boolean wait_for_data = true;
+    while (client.connected()) {
+        if (client.available()) {
+            buffer[curr_char] = client.read();
+            buff_char_t &c = buffer[curr_char];
+            curr_char++;
+        } else if(wait_for_data) {
+            delay(10);
+            wait_for_data = false;
+        } else {
+            break;
+        }
+    }
+    // give the web browser time to receive the data
+    delay(1);
+    // close the connection:
+    client.stop();
+    return curr_char;
 }
 
 void loop() {
-    if(Serial.available()) {
-        cout << "data:" << endl;
-        int length = read_data();
-        RDServer.parse_microscript(&buffer[0], length, 1);
-        // send a standard http response header
-        cout << "free mem: " << get_free_memory() << endl;
-        cout << "error? " << RDServer.get_error() << endl;
+    // listen for incoming clients
+    Client client = server.available();
+    RemoteDuinoServer RDServer;
+    if (client) {
+        Serial.println("gclient request");
 
-        // output the value of each analog input pin
-        //cout.write(&buffer[0], length);
+        int length = read_request(client);
+        cout << "got " << length << " bytes." << endl;
+        RDServer.parse_microscript(&buffer[0], length);
+        // send a standard http response header
+        cout << get_free_memory() << endl;
+        bool err = RDServer.get_error();
+        if(err) {
+            for(int i = 0; i < length; i++) {
+                cout.write(&buffer[i], 1);
+            }
+        } else {
+            /*
+            for(int i = 0; i < RDServer.keys.size(); i++) {
+                cout << RDServer.keys[i] << ": " << RDServer.values[i] << endl;
+            }
+            */
+            cout << "code:" << RDServer.code << endl;
+            cout << "protocol:" << RDServer.protocol << endl;
+            // output the value of each analog input pin
+            digitalWrite(STATUS_PIN, HIGH);
+            for(int i = 0; i < 3; i++) {
+                sendCode(RDServer.protocol, RDServer.code);
+            }
+            digitalWrite(STATUS_PIN, LOW);
+            delay(50); // Wait a bit between retransmissions
+            irrecv.enableIRIn(); // Re-enable receiver
 #if 0
-        digitalWrite(STATUS_PIN, HIGH);
-        for(int i = 0; i < 3; i++) {
-            sendCode(false);
-        }
-        digitalWrite(STATUS_PIN, LOW);
-        delay(50); // Wait a bit between retransmissions
-        irrecv.enableIRIn(); // Re-enable receiver
 #endif
+        }
     } 
     else if (irrecv.decode(&results)) {
         digitalWrite(STATUS_PIN, HIGH);
@@ -224,4 +270,9 @@ void loop() {
         irrecv.resume(); // resume receiver
         digitalWrite(STATUS_PIN, LOW);
     }
+}
+
+
+void RemoteDuinoServer::handle_error() {
+    cout << "ERR:" << endl;
 }

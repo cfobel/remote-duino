@@ -81,6 +81,8 @@ ARDUINO_VER     = ARGUMENTS.get('ARDUINO_VER', 22) # Arduino 0022
 RST_TRIGGER     = ARGUMENTS.get('RST_TRIGGER', 'stty hupcl -F ') # use built-in pulseDTR() by default
 EXTRA_LIB       = ARGUMENTS.get('EXTRA_LIB', None) # handy for adding another arduino-lib dir
 
+print 'ARDUINO_PORT:', ARDUINO_PORT
+
 if not ARDUINO_HOME:
     print 'ARDUINO_HOME must be defined.'
     raise KeyError('ARDUINO_HOME')

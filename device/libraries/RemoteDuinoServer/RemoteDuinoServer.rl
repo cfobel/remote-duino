@@ -3,25 +3,12 @@
 %%{
     machine microscript;
 
-    action StartKey {
-        ks = p;
-    }
-    
-    action RecordKey {
-        key = string(ks, (p - ks));
+    action store_code {
+        code = currentNumber;
     }
 
-    action RecordValue {
-        string value = string(ks, (p - ks));
-        data[key] = value;
-    }
-
-    action StartChar {
-        us = p;
-    }
-    
-    action RecordChar {
-        encoded_chars.push_back(string(us, (p - us)));
+    action store_protocol {
+        protocol = currentNumber;
     }
 
     action ClearNumber {
@@ -33,50 +20,45 @@
         currentNumber = (currentNumber * 10) + digit;
     }
 
-    action RecordContentLength {
-        content_length = currentNumber;
+    action RecordHexDigit {
+        uint8_t digit = (*p) - '0';
+        currentNumber = (currentNumber << 4) + digit;
     }
 
-    action UpdateEOF {
-        eof = p + content_length;
-        pe = eof;
+    action RecordHexAlpha {
+        uint8_t digit = (*p) - 'A';
+        currentNumber = (currentNumber << 4) + (10 + digit);
     }
 
     action cmd_error {
-#if 0
-        cout << "Error" << endl;
-#endif
+        handle_error();
     }
 
     action finish_parse {
         error = false;
     }
 
-    number = ((digit @RecordDigit)+) >ClearNumber; 
+    number = (((digit @RecordDigit))+) >ClearNumber; 
+    hex_number = (((digit @RecordHexDigit) | ([A-F] @RecordHexAlpha))+) >ClearNumber; 
     
-    post = ("POST"i [^\n]* '\n');
-    user_agent = ("USER-AGENT:"i [^\n]* '\n');
-    host = ("HOST:"i [^\n]* '\n');
-    accept = ("ACCEPT:"i [^\n]* '\n');
-    content_length = ("CONTENT-LENGTH:"i space+ number '\n') %RecordContentLength;
-    content_type = ("CONTENT-TYPE:" space+ "APPLICATION/X-WWW-FORM-URLENCODED"i space*) %UpdateEOF;
+    post = ("POST"i (any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
 
-    url_encoded = ('%' [0-9a-fA-F]{2}) >StartChar %RecordChar;
-    key = ((ascii - space - '&')+) >StartKey %RecordKey;
-    value = ((url_encoded | (ascii - space - '&'))+) >StartKey %RecordValue;
-    data = (key '=' value);
+    #url_encoded = ('%' [0-9a-fA-F]{2}) >StartChar %RecordChar;
+    #key = ((ascii - space - '&')+) >StartKey %RecordKey;
+    #value = ((url_encoded | (ascii - space - '&'))+) >StartKey %RecordValue;
+    url_encoded = ('%' [0-9a-fA-F]{2});
+    key = ((ascii - space - '&')+);
+    value = ((url_encoded | (ascii - space - '&'))+);
+    code_value = '0x' hex_number %store_code;
+    protocol_value = number %store_protocol;
+    code = ('c=' code_value);
+    protocol = ('p=' protocol_value);
+    data = (code | protocol);
     data_set = (data ('&' data)*);
-    header = (
-            post 
-            user_agent
-            host
-            accept
-            content_length
-            content_type
-            );
+    header = ( post );
 
-    main := (header data_set space*) <!cmd_error %finish_parse;
-#    main := post user_agent host accept content_length content_type
+    main := (post data_set space*) <!cmd_error %finish_parse;
+    #main := (header data_set space*) <!cmd_error %finish_parse;
 }%% 
 
 /* Regal data ****************************************/
@@ -90,10 +72,12 @@ void RemoteDuinoServer::init() {
 	%% write init;
 }
 
-void RemoteDuinoServer::parse_microscript(const char* p, uint16_t len, uint8_t is_eof) {
+void RemoteDuinoServer::parse_microscript(const char* input, uint16_t len) {
     reset();
+    p = input;
     const char* pe = p + len; /* pe points to 1 byte beyond the end of this block of data */
-    const char* eof = is_eof ? pe : ((char*) 0); /* Indicates the end of all data, 0 if not in this block */
+    const char* eof = pe; /* Indicates the end of all data, 0 if not in this block */
+    buf = p;
     
     %% write exec;
 } 

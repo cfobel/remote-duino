@@ -3,27 +3,24 @@
 #include <string>
 #include <stdint.h>
 #include <vector>
-#include <map>
+//#include <map>
 using namespace std;
 
-typedef std::map<string, string> key_val_map_t;
+//typedef std::map<string, string> key_val_map_t;
 
 class RemoteDuinoServer {
 private:
     char const *ts;
     char const *us;
     char const *ks;
-    int content_length;
     uint8_t cs; /* The current parser state */
-    uint16_t currentNumber;
+    uint32_t currentNumber;
     bool error;
-    string key;
-    key_val_map_t data;
-    vector<string> encoded_chars;
-
+    //key_val_map_t data;
+    const char* buf;
+    const char* p;
     void init();
 public:
-    vector<char> buf_vector;
     RemoteDuinoServer() {
         init();
     }
@@ -32,9 +29,14 @@ public:
     }
     void reset() {
         ts = NULL;
-        content_length = 0;
+        us = NULL;
+        ks = NULL;
         error = true;
         currentNumber = 0;
     }
-    void parse_microscript(const char* p, uint16_t len, uint8_t is_eof);
+    void parse_microscript(const char* input, uint16_t len);
+    void handle_error();
+
+    uint32_t code;
+    int protocol;
 };
