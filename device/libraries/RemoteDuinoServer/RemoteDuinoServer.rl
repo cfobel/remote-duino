@@ -1,4 +1,4 @@
-#include "Server.hpp"
+#include "RemoteDuinoServer.h"
 
 %%{
     machine microscript;
@@ -84,15 +84,16 @@
 /* Regal data: end ***********************************/
 
 
-void Server::init() {
-    buf = &buf_vector[0];
+void RemoteDuinoServer::init() {
+    reset();
 
 	%% write init;
 }
 
-void Server::parse_microscript(const char* p, uint16_t len, uint8_t is_eof) {
-  const char* pe = p + len; /* pe points to 1 byte beyond the end of this block of data */
-  const char* eof = is_eof ? pe : ((char*) 0); /* Indicates the end of all data, 0 if not in this block */
- 
-  %% write exec;
+void RemoteDuinoServer::parse_microscript(const char* p, uint16_t len, uint8_t is_eof) {
+    reset();
+    const char* pe = p + len; /* pe points to 1 byte beyond the end of this block of data */
+    const char* eof = is_eof ? pe : ((char*) 0); /* Indicates the end of all data, 0 if not in this block */
+    
+    %% write exec;
 } 
