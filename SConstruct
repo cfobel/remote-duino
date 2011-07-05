@@ -108,7 +108,7 @@ ARDUINO_LIBS += [pathJoin(ARDUINO_HOME, 'libraries'), '/home/christian/Documents
 # check given board name, ARDUINO_BOARD is valid one
 ptnBoard = re.compile(r'^(.*)\.name=(.*)')
 boards = {}
-ARDUINO_CONFIG = list(chain(open(ARDUINO_CONF), open('/home/christian/Dropbox/Arduino/hardware/optiboot/boards.txt')))
+ARDUINO_CONFIG = list(chain(open(ARDUINO_CONF), open('/home/christian/local/opt/arduino-0022/optiboot/optiboot/boards.txt')))
 for line in ARDUINO_CONFIG:
     result = ptnBoard.findall(line)
     if result:

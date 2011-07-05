@@ -42,6 +42,7 @@
     hex_number = (((digit @RecordHexDigit) | ([A-F] @RecordHexAlpha))+) >ClearNumber; 
     
     post = ("POST"i (any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
+    get = ("GET"i (any* - "/?") "/?");
 
     #url_encoded = ('%' [0-9a-fA-F]{2}) >StartChar %RecordChar;
     #key = ((ascii - space - '&')+) >StartKey %RecordKey;
@@ -54,10 +55,13 @@
     code = ('c=' code_value);
     protocol = ('p=' protocol_value);
     data = (code | protocol);
-    data_set = (data ('&' data)*);
+    data_set = (data ('&' data)+);
     header = ( post );
 
-    main := (post data_set space*) <!cmd_error %finish_parse;
+    post_request = (post data_set space*);
+    get_request = (get data_set space+ any*);
+    main := get_request <!cmd_error %finish_parse;
+    #main := (get_request) <!cmd_error %finish_parse;
     #main := (header data_set space*) <!cmd_error %finish_parse;
 }%% 
 

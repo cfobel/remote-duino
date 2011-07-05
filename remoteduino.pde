@@ -176,7 +176,7 @@ void sendCode(int protocol, uint32_t code, int code_length = 32) {
 }
 
 typedef char buff_char_t;
-buff_char_t buffer[400];
+buff_char_t buffer[500];
 
 int read_data() {
     int curr_char = 0;
@@ -214,16 +214,13 @@ int read_request(Client &client) {
             buff_char_t &c = buffer[curr_char];
             curr_char++;
         } else if(wait_for_data) {
-            delay(10);
+            delay(5);
             wait_for_data = false;
         } else {
             break;
         }
     }
     // give the web browser time to receive the data
-    delay(1);
-    // close the connection:
-    client.stop();
     return curr_char;
 }
 
@@ -240,7 +237,12 @@ void loop() {
         // send a standard http response header
         cout << get_free_memory() << endl;
         bool err = RDServer.get_error();
+        // send a standard http response header
+        client.println("HTTP/1.1 200 OK");
+        client.println("Content-Type: text/html");
+        client.println();
         if(err) {
+            client.println("<h1>ERROR</h1>");
             for(int i = 0; i < length; i++) {
                 cout.write(&buffer[i], 1);
             }
@@ -252,6 +254,7 @@ void loop() {
             */
             cout << "code:" << RDServer.code << endl;
             cout << "protocol:" << RDServer.protocol << endl;
+            client.println("<h1>OK</h1>");
             // output the value of each analog input pin
             digitalWrite(STATUS_PIN, HIGH);
             for(int i = 0; i < 3; i++) {
@@ -260,9 +263,10 @@ void loop() {
             digitalWrite(STATUS_PIN, LOW);
             delay(50); // Wait a bit between retransmissions
             irrecv.enableIRIn(); // Re-enable receiver
-#if 0
-#endif
         }
+        delay(1);
+        // close the connection:
+        client.stop();
     } 
     else if (irrecv.decode(&results)) {
         digitalWrite(STATUS_PIN, HIGH);
