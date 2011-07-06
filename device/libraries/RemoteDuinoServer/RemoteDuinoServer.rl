@@ -1,7 +1,22 @@
 #include "RemoteDuinoServer.h"
 
+extern "C" void __cxa_pure_virtual(void);
+void __cxa_pure_virtual(void) {} 
+
+
+int get_free_memory() {
+    int free_memory;
+
+    if((int)__brkval == 0)
+        free_memory = ((int)&free_memory) - ((int)__bss_end);
+    else
+        free_memory = ((int)&free_memory) - ((int)__brkval);
+
+    return free_memory;
+}
+
 %%{
-    machine RemoteDuinoServer;
+    machine BaseRemoteDuinoServer;
 
     action store_code {
         code = currentNumber;
@@ -79,7 +94,9 @@
 /* Regal data: end ***********************************/
 
 
-void RemoteDuinoServer::init() {
+void BaseRemoteDuinoServer::init() {
+    //irrecv.enableIRIn(); // Start the receiver
+    pinMode(STATUS_PIN, OUTPUT);
     buf = &buf_vector[0];
     BUFSIZE = buf_vector.size();
     reset();
@@ -87,7 +104,7 @@ void RemoteDuinoServer::init() {
 	%% write init;
 }
 
-void RemoteDuinoServer::parse() {
+void BaseRemoteDuinoServer::parse() {
     bool done = false;
     error = false;
     int i = 0;
@@ -115,7 +132,7 @@ void RemoteDuinoServer::parse() {
         } else {
             %% write exec;
 
-            if(cs == RemoteDuinoServer_error) {
+            if(cs == BaseRemoteDuinoServer_error) {
                 /* Machine failed before finding a token. */
                 error = true;
                 break;
@@ -134,36 +151,54 @@ void RemoteDuinoServer::parse() {
 } 
 
 
-int RemoteDuinoServer::available() {
-    return Serial.available();
-}
-
-
-int RemoteDuinoServer::read_data(char *p, int const max_length) {
-    int curr_char = 0;
-    bool currentLineIsBlank = true;
-    while(Serial.available()) {
-        p[curr_char] = Serial.read();
-        char &c = p[curr_char];
-        curr_char++;
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-            break;
-        }
-        if (c == '\n') {
-            // you're starting a new line
-            currentLineIsBlank = true;
-        } 
-        else if (c != '\r') {
-            // you've gotten a character on the current line
-            currentLineIsBlank = false;
-        }
-        if(curr_char >= max_length) {
-            break;
-        }
-        delay(20);
+void BaseRemoteDuinoServer::sendCode(int protocol, uint32_t code, int code_length) {
+    if(protocol == NEC) {
+        irsend.sendNEC(code, code_length);
+        cout << "Sent NEC ";
+        Serial.println(code, HEX);
+    } else if(protocol == SONY) {
+        irsend.sendSony(code, code_length);
+        cout << "Sent Sony ";
+        Serial.println(code, HEX);
+    } else if(protocol == RC5) {
+        cout << "Sent RC5 ";
+        Serial.println(code, HEX);
+        irsend.sendRC5(code, code_length);
+    } else if(protocol == RC6) {
+        irsend.sendRC6(code, code_length);
+        cout << "Sent RC6 ";
+        Serial.println(code, HEX);
+    } else {
+    //else if (protocol == UNKNOWN /* i.e. raw */) {
+        // Assume 38 KHz
+        //irsend.sendRaw(rawCodes, codeLen, 38);
+        Serial.println("Unkown protocol");
     }
-    return curr_char;
 }
+
+
+void BaseRemoteDuinoServer::process_request() {
+    if(available()) {
+        parse();
+        // send a standard http response header
+        cout << get_free_memory() << endl;
+        bool err = get_error();
+        if(err) {
+            cout << "Error parsing" << endl;
+            return;
+        } 
+
+        cout << "Parse succesful" << endl;
+        cout << "action:" << uri_action << endl;
+        cout << "code:" << code << endl;
+        cout << "protocol:" << protocol << endl;
+
+        // output the value of each analog input pin
+        for(int i = 0; i < 3; i++) {
+            sendCode(protocol, code);
+        }
+        delay(50); // Wait a bit between retransmissions
+        //irrecv.enableIRIn(); // Re-enable receiver
+    }
+}
+
