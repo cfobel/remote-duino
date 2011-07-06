@@ -94,17 +94,26 @@ int get_free_memory() {
 /* Regal data: end ***********************************/
 
 
-void BaseRemoteDuinoServer::init() {
+void BaseRemoteDuinoServer::begin() {
     //irrecv.enableIRIn(); // Start the receiver
     pinMode(STATUS_PIN, OUTPUT);
     buf = &buf_vector[0];
     BUFSIZE = buf_vector.size();
     reset();
-
-	%% write init;
 }
 
+
+void BaseRemoteDuinoServer::reset() {
+    ts = NULL;
+    error = false;
+    currentNumber = 0;
+
+    %% write init;
+}
+
+
 void BaseRemoteDuinoServer::parse() {
+    reset();
     bool done = false;
     error = false;
     int i = 0;
@@ -122,6 +131,9 @@ void BaseRemoteDuinoServer::parse() {
         //in_stream.read( p, space );
         //int len = in_stream.gcount();
         int len = read_data(p, space);
+        if(verbose) {
+            cout.write(p, len);
+        }
         char *pe = p + len;
         char *eof = 0;
 

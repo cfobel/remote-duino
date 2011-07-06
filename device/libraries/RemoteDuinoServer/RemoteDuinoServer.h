@@ -1,3 +1,7 @@
+#ifndef ___REMOTE_DUINO_SERVER__H___
+#define ___REMOTE_DUINO_SERVER__H___
+
+#include <WProgram.h>
 #include <stl_config.h>
 #include <serstream>
 #include <sstream>
@@ -5,6 +9,8 @@
 #include <stdint.h>
 #include <vector>
 #include <wiring.h>
+#include <SPI.h>
+#include <Ethernet.h>
 #include <HardwareSerial.h>
 #include <IRremote.h>
 
@@ -29,6 +35,8 @@ protected:
 	int have;
 	int length;
 
+    bool verbose;
+
     bool error;
     uint32_t currentNumber;
     int RECV_PIN;
@@ -39,28 +47,21 @@ protected:
 
     decode_results results;
 public:
-    BaseRemoteDuinoServer(int buffer_size) 
-            : RECV_PIN(7), STATUS_PIN(13), irrecv(IRrecv(RECV_PIN)) {
-        buf_vector = vector<char>(buffer_size);
-        init();
-    }
+    BaseRemoteDuinoServer(int buffer_size, bool verbose = false) 
+            : buf_vector(vector<char>(buffer_size)), verbose(verbose), 
+                RECV_PIN(7), STATUS_PIN(13), irrecv(IRrecv(RECV_PIN)) {}
 
     bool get_error() const {
         return error;
     }
 
-    void reset() {
-        ts = NULL;
-        error = false;
-        currentNumber = 0;
-    }
-
+    void reset();
 
     uint32_t code;
     int protocol;
     string uri_action;
 
-	virtual void init();
+	virtual void begin();
     virtual void handle_error() { }
 	virtual void parse();
     virtual void process_request();
@@ -77,6 +78,30 @@ public:
 
     virtual int available();
     virtual int read_data(char *p, int const max_length);
+};
+
+
+class EthernetRemoteDuinoServer : public BaseRemoteDuinoServer {
+    // Enter a MAC address and IP address for your controller below.
+    // The IP address will be dependent on your local network:
+    byte *mac; // = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+    byte *ip; // = { 192,168,1, 182 };
+
+    // Initialize the Ethernet server library
+    // with the IP address and port you want to use 
+    // (port 80 is default for HTTP):
+    Server server; //(80);
+    Client client; // = server.available();
+    bool _available;
+public:
+    EthernetRemoteDuinoServer(int buffer_size, byte *mac, byte *ip) :
+        BaseRemoteDuinoServer(buffer_size), mac(mac), ip(ip),
+        server(Server(80)), client(Client(MAX_SOCK_NUM)), _available(false) {}
+
+	virtual void begin();
+    virtual int available();
+    virtual int read_data(char *p, int const max_length);
+    virtual void process_request();
 };
 
 
@@ -148,4 +173,6 @@ void storeCode(decode_results *results) {
     codeLen = results->bits;
   }
 }
+#endif
+
 #endif
