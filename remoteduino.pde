@@ -26,11 +26,14 @@ using namespace std;
  * http://arcfn.com
  */
 
+#if 0
 #include <SPI.h>
 #include <Ethernet.h>
+#endif
 #include <RemoteDuinoServer.h>
 #include <IRremote.h>
 
+#if 0
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
@@ -40,6 +43,7 @@ byte ip[] = { 192,168,1, 182 };
 // with the IP address and port you want to use 
 // (port 80 is default for HTTP):
 Server server(80);
+#endif
 
 int RECV_PIN = 7;
 int STATUS_PIN = 13;
@@ -59,9 +63,11 @@ void init_ethernet()
   delay(2000);              // wait for a second
   digitalWrite(8, HIGH);    // set the LED off
   delay(1000);              // wait for a second
+#if 0
   // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
   server.begin();
+#endif
 }
 
 extern void *__bss_end;
@@ -175,68 +181,46 @@ void sendCode(int protocol, uint32_t code, int code_length = 32) {
     }
 }
 
-typedef char buff_char_t;
-buff_char_t buffer[500];
-
-int read_data() {
-    int curr_char = 0;
-    boolean currentLineIsBlank = true;
-    while(Serial.available()) {
-        buffer[curr_char] = Serial.read();
-        buff_char_t &c = buffer[curr_char];
-        curr_char++;
-        // if you've gotten to the end of the line (received a newline
-        // character) and the line is blank, the http request has ended,
-        // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
-            break;
-        }
-        if (c == '\n') {
-            // you're starting a new line
-            currentLineIsBlank = true;
+void RemoteDuinoServer::process_request() {
+    if(available()) {
+        parse();
+        // send a standard http response header
+        cout << get_free_memory() << endl;
+        bool err = get_error();
+        if(err) {
+            cout << "Error parsing" << endl;
+            return;
         } 
-        else if (c != '\r') {
-            // you've gotten a character on the current line
-            currentLineIsBlank = false;
-        }
-        delay(10);
-    }
-    return curr_char;
-}
 
-int read_request(Client &client) {
-    // an http request ends with a blank line
-    int curr_char = 0;
-    boolean wait_for_data = true;
-    while (client.connected()) {
-        if (client.available()) {
-            buffer[curr_char] = client.read();
-            buff_char_t &c = buffer[curr_char];
-            curr_char++;
-        } else if(wait_for_data) {
-            delay(5);
-            wait_for_data = false;
-        } else {
-            break;
+        cout << "Parse succesful" << endl;
+        cout << "action:" << uri_action << endl;
+        cout << "code:" << code << endl;
+        cout << "protocol:" << protocol << endl;
+
+        // output the value of each analog input pin
+        digitalWrite(STATUS_PIN, HIGH);
+        for(int i = 0; i < 3; i++) {
+            sendCode(protocol, code);
         }
+        digitalWrite(STATUS_PIN, LOW);
+        delay(50); // Wait a bit between retransmissions
+        //irrecv.enableIRIn(); // Re-enable receiver
     }
-    // give the web browser time to receive the data
-    return curr_char;
 }
 
 void loop() {
+#if 0
     // listen for incoming clients
     Client client = server.available();
     RemoteDuinoServer RDServer;
     if (client) {
-        Serial.println("gclient request");
-
-        int length = read_request(client);
-        cout << "got " << length << " bytes." << endl;
-        RDServer.parse_microscript(&buffer[0], length);
-        // send a standard http response header
-        cout << get_free_memory() << endl;
-        bool err = RDServer.get_error();
+#endif
+    RemoteDuinoServer RDServer(50);
+    if(RDServer.available()) {
+        RDServer.process_request();
+    }
+#if 0
+#if 0
         // send a standard http response header
         client.println("HTTP/1.1 200 OK");
         client.println("Content-Type: text/html");
@@ -252,6 +236,7 @@ void loop() {
                 cout << RDServer.keys[i] << ": " << RDServer.values[i] << endl;
             }
             */
+            cout << "action:" << RDServer.uri_action << endl;
             cout << "code:" << RDServer.code << endl;
             cout << "protocol:" << RDServer.protocol << endl;
             client.println("<h1>OK</h1>");
@@ -267,13 +252,14 @@ void loop() {
         delay(1);
         // close the connection:
         client.stop();
-    } 
-    else if (irrecv.decode(&results)) {
+#endif
+    } else if (irrecv.decode(&results)) {
         digitalWrite(STATUS_PIN, HIGH);
         storeCode(&results);
         irrecv.resume(); // resume receiver
         digitalWrite(STATUS_PIN, LOW);
     }
+#endif
 }
 
 

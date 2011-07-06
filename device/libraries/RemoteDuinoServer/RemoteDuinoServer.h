@@ -3,25 +3,34 @@
 #include <string>
 #include <stdint.h>
 #include <vector>
+#include <wiring.h>
+#include <HardwareSerial.h>
+
+extern HardwareSerial Serial;
+
 //#include <map>
 using namespace std;
 
 //typedef std::map<string, string> key_val_map_t;
 
 class RemoteDuinoServer {
-private:
-    char const *ts;
-    char const *us;
-    char const *ks;
-    uint8_t cs; /* The current parser state */
-    uint32_t currentNumber;
+    vector<char> buf_vector;
+    char* buf;
+    int BUFSIZE;
+
+	const char *ts;
+	const char *te;
+	const char *be;
+
+	int cs;
+	int have;
+	int length;
+
     bool error;
-    //key_val_map_t data;
-    const char* buf;
-    const char* p;
-    void init();
+    uint32_t currentNumber;
 public:
-    RemoteDuinoServer() {
+    RemoteDuinoServer(int buffer_size) {
+        buf_vector = vector<char>(buffer_size);
         init();
     }
     bool get_error() const {
@@ -29,14 +38,18 @@ public:
     }
     void reset() {
         ts = NULL;
-        us = NULL;
-        ks = NULL;
-        error = true;
+        error = false;
         currentNumber = 0;
     }
-    void parse_microscript(const char* input, uint16_t len);
+	void init();
+	void parse();
     void handle_error();
+
+    int available();
+    int read_data(char *p, int const max_length);
+    void process_request();
 
     uint32_t code;
     int protocol;
+    string uri_action;
 };
