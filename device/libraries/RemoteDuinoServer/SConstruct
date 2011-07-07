@@ -30,8 +30,7 @@ elif MACHINE is not None:
 else:
     env.Append(CPPFLAGS=['-Os'])
 
-# Generate foo.vds from foo.txt using mk_vdu
-server_source = env.Ragel(ragel_source)
+server_source = env.Ragel('RemoteDuinoServer_parser.cpp', ragel_source)
 #env.Program('Server', ['main.cpp', server_source])
 
 dot = env.RagelDot(ragel_source)

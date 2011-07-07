@@ -66,3 +66,54 @@ int EthernetRemoteDuinoServer::read_data(char *p, int const max_length) {
     }
     return curr_char;
 }
+
+
+// Write learned code to client
+void EthernetRemoteDuinoServer::report_code() {
+    if (codeType == UNKNOWN) {
+        client.println("<p>Received unknown code, saving as raw</p><p>");
+        // To store raw codes:
+        // Drop first value (gap)
+        // Convert from ticks to microseconds
+        // Tweak marks shorter, and spaces longer to cancel out IR receiver distortion
+        for(int i = 1; i <= codeLen; i++) {
+            if(i % 2) {
+                // Mark
+                client.print(" m");
+            } else {
+                // Space
+                client.print(" s");
+            }
+            client.print(rawCodes[i - 1], DEC);
+        }
+        client.println("</p>");
+    } else {
+        if (codeType == NEC) {
+            client.println("<p>Received NEC: ");
+            if (codeValue == REPEAT) {
+                // Don't record a NEC repeat value as that's useless.
+                client.println("repeat; ignoring.</p>");
+                return;
+            }
+        } else if (codeType == SONY) {
+            client.println("<p>Received Sony: ");
+        } else if (codeType == RC5) {
+            client.println("<p>Received RC5: ");
+        } else if (codeType == RC6) {
+            client.println("<p>Received RC6: ");
+        } else {
+            client.println("<p>Unexpected codeType ");
+            client.print(codeType, DEC);
+            client.println("</p>");
+        }
+        client.println("<h2>");
+        client.println(codeValue, HEX);
+        client.println("</h2>");
+    }
+}
+
+
+void EthernetRemoteDuinoServer::learn_code() {
+    BaseRemoteDuinoServer::learn_code();
+    report_code();
+}

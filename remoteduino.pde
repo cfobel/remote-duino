@@ -54,12 +54,4 @@ void loop() {
     if(RDServer.available()) {
         RDServer.process_request();
     }
-#if 0
-    } else if (irrecv.decode(&results)) {
-        digitalWrite(STATUS_PIN, HIGH);
-        storeCode(&results);
-        irrecv.resume(); // resume receiver
-        digitalWrite(STATUS_PIN, LOW);
-    }
-#endif
 }

@@ -1,20 +1,5 @@
 #include "RemoteDuinoServer.h"
 
-extern "C" void __cxa_pure_virtual(void);
-void __cxa_pure_virtual(void) {} 
-
-
-int get_free_memory() {
-    int free_memory;
-
-    if((int)__brkval == 0)
-        free_memory = ((int)&free_memory) - ((int)__bss_end);
-    else
-        free_memory = ((int)&free_memory) - ((int)__brkval);
-
-    return free_memory;
-}
-
 %%{
     machine BaseRemoteDuinoServer;
 
@@ -45,27 +30,27 @@ int get_free_memory() {
         currentNumber = (currentNumber << 4) + (10 + digit);
     }
 
-    action clear_uri_action {
-        uri_action.clear();
+    action record_learn_action {
+        uri_action = LEARN_CODE;
     }
 
-    action record_action_char {
-        uri_action.push_back(*fpc);
-    }
-
-    action cmd_error {
-        handle_error();
+    action record_send_action {
+        uri_action = SEND_CODE;
     }
 
     action finish_parse {
         error = false;
     }
 
+    action cmd_error {
+    }
+
+
     number = (((digit @RecordDigit))+) >ClearNumber; 
     hex_number = (((digit @RecordHexDigit) | ([A-F] @RecordHexAlpha))+) >ClearNumber; 
     
-    uriaction = (("learn")? $record_action_char); # >start_uri_action @store_uri_action;
-    uripath = '/' (uriaction) >clear_uri_action;
+    uriaction = (("learn" @record_learn_action) | ("send" @record_send_action));
+    uripath = '/' (uriaction);
     #uripath = (any* - "?");
 
     post = ("POST"i (any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
@@ -92,15 +77,6 @@ int get_free_memory() {
 /* Regal data ****************************************/
 %% write data nofinal;
 /* Regal data: end ***********************************/
-
-
-void BaseRemoteDuinoServer::begin() {
-    //irrecv.enableIRIn(); // Start the receiver
-    pinMode(STATUS_PIN, OUTPUT);
-    buf = &buf_vector[0];
-    BUFSIZE = buf_vector.size();
-    reset();
-}
 
 
 void BaseRemoteDuinoServer::reset() {
@@ -161,56 +137,3 @@ void BaseRemoteDuinoServer::parse() {
         }
     }
 } 
-
-
-void BaseRemoteDuinoServer::sendCode(int protocol, uint32_t code, int code_length) {
-    if(protocol == NEC) {
-        irsend.sendNEC(code, code_length);
-        cout << "Sent NEC ";
-        Serial.println(code, HEX);
-    } else if(protocol == SONY) {
-        irsend.sendSony(code, code_length);
-        cout << "Sent Sony ";
-        Serial.println(code, HEX);
-    } else if(protocol == RC5) {
-        cout << "Sent RC5 ";
-        Serial.println(code, HEX);
-        irsend.sendRC5(code, code_length);
-    } else if(protocol == RC6) {
-        irsend.sendRC6(code, code_length);
-        cout << "Sent RC6 ";
-        Serial.println(code, HEX);
-    } else {
-    //else if (protocol == UNKNOWN /* i.e. raw */) {
-        // Assume 38 KHz
-        //irsend.sendRaw(rawCodes, codeLen, 38);
-        Serial.println("Unkown protocol");
-    }
-}
-
-
-void BaseRemoteDuinoServer::process_request() {
-    if(available()) {
-        parse();
-        // send a standard http response header
-        cout << get_free_memory() << endl;
-        bool err = get_error();
-        if(err) {
-            cout << "Error parsing" << endl;
-            return;
-        } 
-
-        cout << "Parse succesful" << endl;
-        cout << "action:" << uri_action << endl;
-        cout << "code:" << code << endl;
-        cout << "protocol:" << protocol << endl;
-
-        // output the value of each analog input pin
-        for(int i = 0; i < 3; i++) {
-            sendCode(protocol, code);
-        }
-        delay(50); // Wait a bit between retransmissions
-        //irrecv.enableIRIn(); // Re-enable receiver
-    }
-}
-
