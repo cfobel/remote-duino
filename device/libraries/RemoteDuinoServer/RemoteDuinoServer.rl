@@ -69,7 +69,7 @@
 
     post_request = (post data_set space*);
     get_request = (get data_set space+ any*);
-    main := get_request <!cmd_error %finish_parse;
+    main := (post_request | get_request) <!cmd_error %finish_parse;
     #main := (get_request) <!cmd_error %finish_parse;
     #main := (header data_set space*) <!cmd_error %finish_parse;
 }%% 

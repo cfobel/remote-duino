@@ -1,5 +1,5 @@
-#include <stl_config.h>
-#include <new.cpp>
+#include <avr_stl.h>
+#include <avr_config.h>
 #include <iostream>
 #include <string>
 #include <vector>

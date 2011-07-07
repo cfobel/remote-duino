@@ -2,7 +2,7 @@
 #define ___REMOTE_DUINO_SERVER__H___
 
 #include <WProgram.h>
-#include <stl_config.h>
+#include <avr_stl.h>
 #include <serstream>
 #include <sstream>
 #include <string>
