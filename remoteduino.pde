@@ -26,6 +26,8 @@ using namespace std;
  * http://arcfn.com
  */
 
+#include <Ports.h>
+#include <RF12.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <IRremote.h>
@@ -47,6 +49,7 @@ void setup() {
     cout << "starting up..." << endl;
     cout << get_free_memory() << endl;
     RDServer.begin();
+    rf12_config();
 }
 
 

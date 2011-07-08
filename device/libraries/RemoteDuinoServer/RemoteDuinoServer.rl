@@ -49,12 +49,14 @@
     number = (((digit @RecordDigit))+) >ClearNumber; 
     hex_number = (((digit @RecordHexDigit) | ([A-F] @RecordHexAlpha))+) >ClearNumber; 
     
-    uriaction = (("learn" @record_learn_action) | ("send" @record_send_action));
-    uripath = '/' (uriaction);
-    #uripath = (any* - "?");
+    learn_action = ("learn" @record_learn_action);
+    send_action = ("send" @record_send_action);
 
-    post = ("POST"i (any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
-    get = ("GET"i space+ uripath "?");
+    #post = ("POST"i (any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
+    #get = ("GET"i space+ uripath "?");
+    post = ("POST"i space+ '/');
+    #(any* - (any* '\n' (space - '\n')* '\n' any*)) '\n' (space - '\n') '\n');
+    get = ("GET"i space+) '/'; #uripath "?");
 
     url_encoded = ('%' [0-9a-fA-F]{2});
     key = ((ascii - space - '&')+);
@@ -67,11 +69,9 @@
     data_set = (data ('&' data)+);
     header = ( post );
 
-    post_request = (post data_set space*);
-    get_request = (get data_set space+ any*);
-    main := (post_request | get_request) <!cmd_error %finish_parse;
-    #main := (get_request) <!cmd_error %finish_parse;
-    #main := (header data_set space*) <!cmd_error %finish_parse;
+    learn_request = (get learn_action any*);
+    send_request = (get send_action '?' data_set space+ any*);
+    main := (learn_request | send_request) <!cmd_error %finish_parse;
 }%% 
 
 /* Regal data ****************************************/

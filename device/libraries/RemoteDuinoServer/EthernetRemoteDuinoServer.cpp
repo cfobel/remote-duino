@@ -114,6 +114,7 @@ void EthernetRemoteDuinoServer::report_code() {
 
 
 void EthernetRemoteDuinoServer::learn_code() {
+    client.println("<h1>Please press button on remote...</h1>");
     BaseRemoteDuinoServer::learn_code();
     report_code();
 }
